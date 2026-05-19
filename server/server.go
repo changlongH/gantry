@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/changlongH/gantry/config"
@@ -50,12 +49,14 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.bot.SendDeploymentMenu(envName, payload.CommitHash, payload.CommitMessage, payload.Author)
-	if err != nil {
-		log.Printf("TG notification dispatch pipeline failed: %v", err)
-		http.Error(w, "Internal routing error", http.StatusInternalServerError)
-		return
-	}
+	/*
+		err := s.bot.SendDeploymentMenu(envName, payload.CommitHash, payload.CommitMessage, payload.Author)
+		if err != nil {
+			log.Printf("TG notification dispatch pipeline failed: %v", err)
+			http.Error(w, "Internal routing error", http.StatusInternalServerError)
+			return
+		}]
+	*/
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Pipeline trigger dispatched to Telegram"))

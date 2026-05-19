@@ -29,50 +29,7 @@ func NewExecutor(cfgMgr *config.Manager) *Executor {
 	return &Executor{cfgMgr: cfgMgr}
 }
 
-func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, imageTag string) (string, error) {
-	// 每次执行动态获取最新配置
-	cfg := e.cfgMgr.Get()
-	env, ok := cfg.Envs[envName]
-	if !ok {
-		return "", fmt.Errorf("environment %s not found", envName)
-	}
-
-	opts := BuildOptions{
-		EnvName:  envName,
-		Service:  svc,
-		ImageTag: imageTag,
-	}
-
-	imageName := e.GetSvcImageName(opts)
-	buildCtx := filepath.Join(env.ProjectPath, svc)
-
-	// 基础构建参数
-	cmdArgs := []string{"build", "-t", imageName}
-
-	// 拼接命令参数: --build-arg KEY=VALUE
-	for k, v := range env.BuildArgs {
-		cmdArgs = append(cmdArgs, "--build-arg", fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// 是否指定dockerfile
-	if env.Dockerfile != "" && env.Dockerfile != "Dockerfile" {
-		cmdArgs = append(cmdArgs, "-f", env.Dockerfile)
-	}
-
-	cmdArgs = append(cmdArgs, ".")
-
-	buildRet, err := e.runCmd(buildCtx, streamOutput, "docker", cmdArgs...)
-	if err != nil {
-		return buildRet, fmt.Errorf("build failed: %w", err)
-	}
-
-	if env.Registry != "" {
-		return e.runCmd(env.ProjectPath, streamOutput, "docker", "push", imageName)
-	}
-	return buildRet, nil
-}
-
-func (e *Executor) RestartCompose(envName string, streamOutput bool) (string, error) {
+func (e *Executor) RestartCompose(envName string, services []string, force bool, streamOutput bool) (string, error) {
 	cfg := e.cfgMgr.Get()
 	env, ok := cfg.Envs[envName]
 	if !ok {
@@ -82,7 +39,21 @@ func (e *Executor) RestartCompose(envName string, streamOutput bool) (string, er
 	dir := filepath.Dir(env.ComposeFile)
 	file := filepath.Base(env.ComposeFile)
 
-	return e.runCmd(dir, streamOutput, "docker-compose", "-f", file, "up", "-d")
+	// 基础命令
+	cmdArgs := []string{"-f", file, "up", "-d"}
+
+	// 如果设置了强制重启，添加参数
+	if force {
+		cmdArgs = append(cmdArgs, "--force-recreate")
+	}
+
+	// 如果指定了服务列表，则只处理这些服务
+	if len(services) > 0 {
+		cmdArgs = append(cmdArgs, "--no-deps") // 可选：不自动拉起依赖容器，仅重启目标
+		cmdArgs = append(cmdArgs, services...)
+	}
+
+	return e.runCmd(dir, streamOutput, "docker-compose", cmdArgs...)
 }
 
 func (e *Executor) GetSvcImageName(opts BuildOptions) string {

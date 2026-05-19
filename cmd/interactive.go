@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -16,74 +15,87 @@ type InteractiveCLI struct {
 	exe    *executor.Executor
 }
 
+type ActionHandler func(envName string, envCfg config.Environment)
+
+type MenuAction struct {
+	Label   string
+	Handler ActionHandler
+}
+
 func NewInteractiveCLI(cfgMgr *config.Manager) *InteractiveCLI {
 	return &InteractiveCLI{
 		cfgMgr: cfgMgr,
 		exe:    executor.NewExecutor(cfgMgr),
 	}
 }
-
 func (cli *InteractiveCLI) Run() {
-	fmt.Println("=== 🤖 Welcome to Deploy-Bot Interactive CLI ===")
+	fmt.Println("=== 🤖 Deploy-Bot 自动化运维控制台 ===")
 
-	var defaultEnvIndex int
+	// 1. 环境选择
 	cfg := cli.cfgMgr.Get()
+	selectedEnv := cli.selectEnvironment(cfg)
+	envCfg := cli.cfgMgr.Get().Envs[selectedEnv]
+
+	// 2. 生产环境安全拦截
+	if selectedEnv == consts.EnvProd && !cli.confirmProduction() {
+		return
+	}
+
+	// 3. 定义可扩展的操作菜单
+	actions := []MenuAction{
+		{Label: "🔨 构建服务 (Build)", Handler: cli.handleServiceBuild},
+		{Label: "🔄 重启容器 (Compose)", Handler: cli.handleComposeRestart},
+		{Label: "🧹 清理镜像 (Prune)", Handler: cli.handlePruneImages},
+		{Label: "🚪 退出程序 (Exit)", Handler: func(e string, c config.Environment) { os.Exit(0) }},
+	}
+
+	// 提取 Label 用于渲染
+	var labels []string
+	for _, a := range actions {
+		labels = append(labels, a.Label)
+	}
+
+	// 4. 渲染菜单
+	var selectedLabel string
+	prompt := &survey.Select{
+		Message: fmt.Sprintf("当前环境: %s [%s] - 请选择操作:", envCfg.Desc, selectedEnv),
+		Options: labels,
+	}
+	survey.AskOne(prompt, &selectedLabel)
+
+	// 5. 查找并执行对应的 Handler
+	for _, a := range actions {
+		if a.Label == selectedLabel {
+			a.Handler(selectedEnv, envCfg)
+			break
+		}
+	}
+}
+
+func (cli *InteractiveCLI) selectEnvironment(cfg *config.Config) string {
 	var envs []string
 	for k := range cfg.Envs {
 		envs = append(envs, k)
-		if k == consts.EnvTest {
-			defaultEnvIndex = len(envs) - 1
-		}
 	}
 
-	var selectedEnv string
-	envPrompt := &survey.Select{
-		Message: "🚧 请选择要操作的环境:",
-		Options: envs,
-		Default: defaultEnvIndex,
-		Description: func(value string, index int) string {
-			if envCfg, ok := cfg.Envs[value]; ok {
-				return fmt.Sprintf("(%s)", envCfg.Desc)
-			}
-			return ""
-		},
+	var selected string
+	prompt := &survey.Select{
+		Message:     "🚧 请选择目标环境:",
+		Options:     envs,
+		Description: func(v string, i int) string { return cfg.Envs[v].Desc },
 	}
-	if err := survey.AskOne(envPrompt, &selectedEnv); err != nil {
-		log.Fatalf("Selection interrupted: %v", err)
-	}
+	survey.AskOne(prompt, &selected)
+	return selected
+}
 
-	// 重新 Get 一次确保获取最新
-	envCfg := cli.cfgMgr.Get().Envs[selectedEnv]
-
-	if selectedEnv == consts.EnvProd {
-		confirm := false
-		prompt := &survey.Confirm{
-			Message: "️‼️ 【重要】: 当前选择的是【生产环境】是否继续?",
-			Default: false,
-		}
-		survey.AskOne(prompt, &confirm)
-		if !confirm {
-			fmt.Println("❌ 操作已取消.")
-			return
-		}
+func (cli *InteractiveCLI) confirmProduction() bool {
+	var confirm bool
+	prompt := &survey.Confirm{
+		Message: "‼️ 当前选择的是【生产环境】是否继续？",
+		Default: false,
 	}
-
-	var action string
-	actionPrompt := &survey.Select{
-		Message: fmt.Sprintf("当前环境 🚧 %s 👷 请选择:", envCfg.Desc),
-		Options: []string{"🔨 构建微服务", "🔄 通过 Docker Compose 重启环境", "🚪 退出"},
-	}
-	survey.AskOne(actionPrompt, &action)
-
-	switch action {
-	case "🔨 构建微服务":
-		cli.handleServiceBuild(selectedEnv, envCfg)
-	case "🔄 通过 Docker Compose 重启环境":
-		cli.handleComposeRestart(selectedEnv)
-	default:
-		fmt.Println("再见!")
-		os.Exit(0)
-	}
+	survey.AskOne(prompt, &confirm)
+	return confirm
 }
 
 func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Environment) {
@@ -135,12 +147,30 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 	}
 }
 
-func (cli *InteractiveCLI) handleComposeRestart(envName string) {
-	fmt.Printf("\n🔄 通过 Docker Compose 重启 [%s] 环境...\n", envName)
-	_, err := cli.exe.RestartCompose(envName, true)
+func (cli *InteractiveCLI) handleComposeRestart(envName string, envCfg config.Environment) {
+	// 获取该环境下的所有服务列表
+	allServices := cli.cfgMgr.Get().Apps
+
+	var selectedSvcs []string
+	svcPrompt := &survey.MultiSelect{
+		Message: "选择要强制重启的服务 (默认全选):",
+		Options: allServices,
+	}
+	survey.AskOne(svcPrompt, &selectedSvcs)
+
+	// 2. 询问是否强制重建 (force)
+	//force := false
+	//survey.AskOne(&survey.Confirm{Message: "是否执行 --force-recreate (重建容器)?", Default: true}, &force)
+
+	// 3. 执行重启
+	output, err := cli.exe.RestartCompose(envName, selectedSvcs, true, true)
 	if err != nil {
-		fmt.Printf("\n❌ 重启失败: %v\n", err)
+		fmt.Printf("❌ 重启失败: %v\n%s\n", err, output)
 		return
 	}
-	fmt.Println("\n✅ Docker-compose 服务已启动并运行!")
+	fmt.Println("✅ 指定服务已按要求重启。")
+}
+
+func (cli *InteractiveCLI) handlePruneImages(envName string, envCfg config.Environment) {
+	cli.exe.CleanupDanglingImages()
 }

@@ -27,14 +27,15 @@ type ServerConfig struct {
 }
 
 type Environment struct {
-	Desc             string            `mapstructure:"desc"` // 环境描述信息
-	ProjectPath      string            `mapstructure:"project_path"`
-	ComposeFile      string            `mapstructure:"compose_file"`
-	Registry         string            `mapstructure:"registry"`
-	Branch           string            `mapstructure:"branch"`
-	Dockerfile       string            `mapstructure:"dockerfile"`
-	BuildArgs        map[string]string `mapstructure:"build_args"`
-	ImageTagStrategy string            `mapstructure:"image_tag_strategy"`
+	Desc             string            `mapstructure:"desc"`               // 环境描述信息
+	ProjectPath      string            `mapstructure:"project_path"`       // 项目源码路径
+	BuildPath        string            `mapstructure:"build_path"`         // 编译产物路径
+	ComposeFile      string            `mapstructure:"compose_file"`       // Docker Compose 文件路径
+	Registry         string            `mapstructure:"registry"`           // 镜像仓库地址，留空表示不推送
+	Branch           string            `mapstructure:"branch"`             // 当前环境对应的 Git 分支
+	Dockerfile       string            `mapstructure:"dockerfile"`         // 可选项，默认为项目根目录下的 Dockerfile 相对路径
+	BuildArgs        map[string]string `mapstructure:"build_args"`         // 构建扩展参数
+	ImageTagStrategy string            `mapstructure:"image_tag_strategy"` // 镜像标签策略
 }
 
 // Manager 负责并发安全地管理配置

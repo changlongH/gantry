@@ -15,8 +15,9 @@ environments:
   test:
     desc: "测试环境"
     branch: "develop"
-    project_path: "/data/src/test/apps"
+    project_path: "/data/src/test/apps" # 项目源码路径
     compose_file: "/root/deploy-server/docker-compose.yml"
+    build_path: "/data/src/test/apps/output" # 编译产物路径
     registry: ""
     dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
     build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=test .
@@ -26,8 +27,9 @@ environments:
   prod:
     desc: "生产环境"
     branch: "release"
-    project_path: "/data/src/release/apps"
+    project_path: "/data/src/release/apps" # 项目源码路径
     compose_file: "/root/deploy-server/docker-compose.yml"
+    build_path: "/data/src/release/apps/output" # 编译产物路径
     registry: "localhost:5000"
     dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
     build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=prod .

@@ -83,3 +83,19 @@ nohup ./gantry --mode server --config ./config.yaml > server.log 2>&1 &
                "author": "${{ github.actor }}"
              }'
 ```
+
+## 启动本地私有仓库 测试
+- 启动服务
+```shell
+docker run -d \
+  --name registry \
+  --restart=always \
+  -p 5000:5000 \
+  -v /data/docker-registry:/var/lib/registry \
+  registry:2
+```
+
+- 删除所有悬空镜像 (Dangling images)
+```
+docker image prune -f
+```
