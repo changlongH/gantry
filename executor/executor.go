@@ -45,12 +45,20 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 
 	imageName := e.GetSvcImageName(opts)
 	buildCtx := filepath.Join(env.ProjectPath, svc)
-	dockerfileAbsPath := filepath.Join(env.ProjectPath, env.Dockerfile)
 
+	// 基础构建参数
 	cmdArgs := []string{"build", "-t", imageName}
-	if env.Dockerfile != "" {
-		cmdArgs = append(cmdArgs, "-f", dockerfileAbsPath)
+
+	// 拼接命令参数: --build-arg KEY=VALUE
+	for k, v := range env.BuildArgs {
+		cmdArgs = append(cmdArgs, "--build-arg", fmt.Sprintf("%s=%s", k, v))
 	}
+
+	// 是否指定dockerfile
+	if env.Dockerfile != "" && env.Dockerfile != "Dockerfile" {
+		cmdArgs = append(cmdArgs, "-f", env.Dockerfile)
+	}
+
 	cmdArgs = append(cmdArgs, ".")
 
 	buildRet, err := e.runCmd(buildCtx, streamOutput, "docker", cmdArgs...)
@@ -104,6 +112,7 @@ func (e *Executor) runCmd(dir string, streamOutput bool, name string, args ...st
 
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
+	fmt.Printf("📢 执行命令: %s %s (工作目录: %s)\n", name, strings.Join(args, " "), dir)
 
 	var buf bytes.Buffer
 	if streamOutput {

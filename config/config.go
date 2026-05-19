@@ -27,13 +27,14 @@ type ServerConfig struct {
 }
 
 type Environment struct {
-	Desc             string `mapstructure:"desc"` // 环境描述信息
-	ProjectPath      string `mapstructure:"project_path"`
-	ComposeFile      string `mapstructure:"compose_file"`
-	Registry         string `mapstructure:"registry"`
-	Branch           string `mapstructure:"branch"`
-	Dockerfile       string `mapstructure:"dockerfile"`
-	ImageTagStrategy string `mapstructure:"image_tag_strategy"`
+	Desc             string            `mapstructure:"desc"` // 环境描述信息
+	ProjectPath      string            `mapstructure:"project_path"`
+	ComposeFile      string            `mapstructure:"compose_file"`
+	Registry         string            `mapstructure:"registry"`
+	Branch           string            `mapstructure:"branch"`
+	Dockerfile       string            `mapstructure:"dockerfile"`
+	BuildArgs        map[string]string `mapstructure:"build_args"`
+	ImageTagStrategy string            `mapstructure:"image_tag_strategy"`
 }
 
 // Manager 负责并发安全地管理配置

@@ -18,7 +18,9 @@ environments:
     project_path: "/data/src/test/apps"
     compose_file: "/root/deploy-server/docker-compose.yml"
     registry: ""
-    dockerfile: "Dockerfile"
+    dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
+    build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=test .
+      ENV: "test"
     image_tag_strategy: "latest" # 固定latest 标签
 
   prod:
@@ -27,5 +29,7 @@ environments:
     project_path: "/data/src/release/apps"
     compose_file: "/root/deploy-server/docker-compose.yml"
     registry: "localhost:5000"
-    dockerfile: "Dockerfile"
+    dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
+    build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=prod .
+      ENV: "prod"
     image_tag_strategy: "timestamp" # 格式 20260102-150405-prod

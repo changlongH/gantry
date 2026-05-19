@@ -117,14 +117,14 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 
 	// 循环遍历执行构建 + 推送
 	for _, selectedSvc := range selectedSvcs {
-		fmt.Printf("\n🚀 开始构建 [%s] 在 [%s] 环境...\n", selectedSvc, envName)
+		fmt.Printf("\n🚀 开始构建 [%s] [%s] ...\n", envCfg.Desc, selectedSvc)
 		_, err := cli.exe.BuildAndPushService(envName, selectedSvc, true, imageTag)
 		if err != nil {
 			// 行业标准规范：批量构建时，某个微服务失败不应该直接 return 阻断流程，应当记录并继续构建下一个
-			fmt.Printf("❌ [%s] 构建失败: %v\n", selectedSvc, err)
+			fmt.Printf("❌ [%s] [%s] 构建失败: %v\n", envCfg.Desc, selectedSvc, err)
 			continue
 		}
-		fmt.Printf("✅ [%s] 构建成功!\n", selectedSvc)
+		fmt.Printf("✅ [%s] [%s] 构建成功!\n", envCfg.Desc, selectedSvc)
 		successSvcs = append(successSvcs, selectedSvc)
 	}
 
