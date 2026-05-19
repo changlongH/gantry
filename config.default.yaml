@@ -1,0 +1,31 @@
+telegram:
+  token: "123456:perivate-token"
+  chat_id: -1000001
+
+server:
+  address: ":6780"
+  secret: "gantry#2026"
+
+apps:
+ - gateway
+ - player
+ - tgbot
+
+environments:
+  test:
+    desc: "测试环境"
+    branch: "develop"
+    project_path: "/data/src/test/apps"
+    compose_file: "/root/deploy-server/docker-compose.yml"
+    registry: ""
+    dockerfile: "Dockerfile"
+    image_tag_strategy: "latest" # 固定latest 标签
+
+  prod:
+    desc: "生产环境"
+    branch: "release"
+    project_path: "/data/src/release/apps"
+    compose_file: "/root/deploy-server/docker-compose.yml"
+    registry: "localhost:5000"
+    dockerfile: "Dockerfile"
+    image_tag_strategy: "timestamp" # 格式 20260102-150405-prod
