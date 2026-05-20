@@ -9,6 +9,7 @@ import (
 	"github.com/changlongH/gantry/config"
 	"github.com/changlongH/gantry/consts"
 	"github.com/changlongH/gantry/executor"
+	"github.com/fatih/color"
 )
 
 type InteractiveCLI struct {
@@ -45,7 +46,7 @@ func (cli *InteractiveCLI) Run() {
 	envCfg := cli.cfgMgr.Get().Envs[selectedEnv]
 
 	// 2. 生产环境安全拦截
-	if selectedEnv == consts.EnvProd && !cli.confirmProduction() {
+	if selectedEnv == consts.EnvProd && !cli.confirmEnv(envCfg.Desc) {
 		return
 	}
 
@@ -99,7 +100,7 @@ func (cli *InteractiveCLI) selectEnvironment(cfg *config.Config) string {
 
 	var selected string
 	prompt := &survey.Select{
-		Message:     "🚧 请选择目标环境:",
+		Message:     "🚧 请选择执行环境:",
 		Options:     envs,
 		Description: func(v string, i int) string { return cfg.Envs[v].Desc },
 		Default:     envs[0],
@@ -108,10 +109,11 @@ func (cli *InteractiveCLI) selectEnvironment(cfg *config.Config) string {
 	return selected
 }
 
-func (cli *InteractiveCLI) confirmProduction() bool {
+func (cli *InteractiveCLI) confirmEnv(envDesc string) bool {
 	var confirm bool
+	envDescHighlighted := color.New(color.FgYellow, color.Bold).Sprintf("【%s】", envDesc)
 	prompt := &survey.Confirm{
-		Message: "‼️ 当前选择的是【生产环境】是否继续？",
+		Message: fmt.Sprintf("‼️ 当前选择的是 %s 环境，是否继续？", envDescHighlighted),
 		Default: false,
 	}
 	survey.AskOne(prompt, &confirm)

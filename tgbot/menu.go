@@ -81,17 +81,18 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 // SendDeploymentMenu 接收代码更新通知，并渲染主操作菜单
 func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commitMsg, author string) error {
 	cfg := b.cfgMgr.Get()
-	if _, ok := cfg.Envs[envName]; !ok {
+	envCfg, ok := cfg.Envs[envName]
+	if !ok {
 		return fmt.Errorf("环境配置不存在: %s", envName)
 	}
 
-	text := fmt.Sprintf("🚀 **【代码推送通知】**\n\n"+
-		"🌍 **目标环境:** `%s`\n"+
+	text := fmt.Sprintf("🚀 **【代码更新通知】**\n"+
+		"🌍 **当前环境:** `%s`\n"+
 		"👤 **提交人员:** %s\n"+
 		"🏷 **Commit:** `%s`\n"+
 		"💬 **更新日志:** %s\n\n"+
-		"👇 **请选择运维操作:**",
-		envName, author, commitHash[:7], commitMsg)
+		"👇 **请选择操作:**",
+		envCfg.Desc, author, commitHash[:7], commitMsg)
 
 	msg := tu.Message(tu.ID(cfg.Telegram.ChatID), text).
 		WithParseMode(telego.ModeMarkdown).
