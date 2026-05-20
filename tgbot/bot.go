@@ -68,60 +68,103 @@ func (b *Bot) handleCallback(thCtx *th.Context, query telego.CallbackQuery) erro
 	baseText := query.Message.Message().Text
 
 	switch CallbackAction(data.Action) {
+	// === 1. 菜单切换路由 (原地更新旧消息) ===
 	case ActionMenuMain:
-		// 返回主菜单
-		menu := b.buildMainMenu(data.Env)
-		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
-		_, _ = bot.EditMessageText(ctx, editMsg)
+		b.switchMenu(ctx, bot, chatID, msgID, baseText, b.buildMainMenu(data.Env))
 	case ActionMenuBuild:
-		menu := b.buildServiceMenu(data.Env, ActionMenuBuild)
-		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
-		_, _ = bot.EditMessageText(ctx, editMsg)
+		b.switchMenu(ctx, bot, chatID, msgID, baseText, b.buildServiceMenu(data.Env, ActionMenuBuild))
 	case ActionMenuRestart:
-		menu := b.buildServiceMenu(data.Env, ActionMenuRestart)
-		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
-		_, _ = bot.EditMessageText(ctx, editMsg)
+		b.switchMenu(ctx, bot, chatID, msgID, baseText, b.buildServiceMenu(data.Env, ActionMenuRestart))
+
+		// === 2. 执行动作路由 (更新消息提示执行中，异步执行具体操作，最后再更新消息显示结果) ===
 	case ActionDoBuild:
-		// 移除按钮，提示执行中
-		_, _ = bot.EditMessageText(ctx, tu.EditMessageText(tu.ID(chatID), msgID,
-			fmt.Sprintf("⏳ 正在构建服务 `%s` [%s]...\n\n%s", data.Svc, data.Env, baseText)).
-			WithParseMode(telego.ModeMarkdown))
-
-		// 异步执行，防止阻塞其他指令
-		go func() {
-			out, err := b.exe.BuildAndPushService(data.Env, data.Svc, false, "")
-			b.sendExecutionResult(bot, chatID, "构建", data.Svc, out, err)
-		}()
+		b.asyncBuildTask(ctx, bot, chatID, data)
 	case ActionDoRestart:
-		// 移除按钮，提示执行中
-		_, _ = bot.EditMessageText(ctx, tu.EditMessageText(tu.ID(chatID), msgID,
-			fmt.Sprintf("⏳ 正在重启服务 `%s` [%s]...\n\n%s", data.Svc, data.Env, baseText)).
-			WithParseMode(telego.ModeMarkdown))
-
-		// 异步执行，防止阻塞其他指令
-		go func() {
-			out, err := b.exe.RestartCompose(data.Env, []string{data.Svc}, true, false)
-			b.sendExecutionResult(bot, chatID, "重启", data.Svc, out, err)
-		}()
+		b.asyncRestartTask(ctx, bot, chatID, data)
+	default:
+		return fmt.Errorf("unknown action: %s", data.Action)
 	}
 
 	return nil
 }
 
-// sendExecutionResult 统一格式化输出执行结果
-func (b *Bot) sendExecutionResult(bot *telego.Bot, chatID int64, action, target, out string, err error) {
-	var text string
+func (b *Bot) asyncBuildTask(ctx context.Context, bot *telego.Bot, chatID int64, data CallbackData) {
+	// 发送初始状态消息
+	statusMsg, err := bot.SendMessage(ctx, tu.Message(
+		tu.ID(chatID),
+		fmt.Sprintf("⏳ **[构建任务启动]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n📊 **当前状态:** 正在编译并打包...", data.Svc, data.Env),
+	).WithParseMode(telego.ModeMarkdown))
 	if err != nil {
-		text = fmt.Sprintf("❌ %s `%s` 失败:\n```\n%v\n%s\n```", action, target, err, out)
-	} else {
-		text = fmt.Sprintf("✅ %s `%s` 成功!", action, target)
+		return
 	}
 
-	// 截断防止超长
-	if len(text) > 4000 {
-		text = text[:4000] + "\n...[输出过长被截断]"
+	go func() {
+		// 执行构建
+		out, imageID, err := b.exe.BuildAndPushService(data.Env, data.Svc, false, "")
+
+		// 组装最终文本
+		var resultText string
+		if err != nil {
+			resultText = fmt.Sprintf("❌ **[构建任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, data.Env, err)
+		} else {
+			shortID := imageID
+			if len(shortID) > 12 {
+				shortID = shortID[:12]
+			}
+			resultText = fmt.Sprintf("✅ **[构建任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n🆔 **镜像 ID:** `%s`", data.Svc, data.Env, shortID)
+		}
+
+		// 附加安全拦截后的日志输出
+		resultText = b.appendLogBlock(resultText, out)
+
+		// 更新状态消息 (使用 Background 防止上层 context 提前取消)
+		editParams := tu.EditMessageText(tu.ID(chatID), statusMsg.MessageID, resultText).WithParseMode(telego.ModeMarkdown)
+		_, _ = bot.EditMessageText(context.Background(), editParams)
+	}()
+}
+
+func (b *Bot) asyncRestartTask(ctx context.Context, bot *telego.Bot, chatID int64, data CallbackData) {
+	// 发送初始状态消息
+	statusMsg, err := bot.SendMessage(ctx, tu.Message(
+		tu.ID(chatID),
+		fmt.Sprintf("⏳ **[重启任务启动]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n📊 **当前状态:** 正在重启容器群...", data.Svc, data.Env),
+	).WithParseMode(telego.ModeMarkdown))
+	if err != nil {
+		return
 	}
 
-	msg := tu.Message(tu.ID(chatID), text).WithParseMode(telego.ModeMarkdown)
-	_, _ = bot.SendMessage(context.Background(), msg)
+	go func() {
+		// 执行重启
+		out, err := b.exe.RestartCompose(data.Env, []string{data.Svc}, true, false)
+
+		// 组装最终文本
+		var resultText string
+		if err != nil {
+			resultText = fmt.Sprintf("❌ **[重启任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, data.Env, err)
+		} else {
+			resultText = fmt.Sprintf("✅ **[重启任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n📊 **当前状态:** 服务已成功拉起并处于活跃状态。", data.Svc, data.Env)
+		}
+
+		// 附加安全拦截后的日志输出
+		resultText = b.appendLogBlock(resultText, out)
+
+		// 更新状态消息
+		editParams := tu.EditMessageText(tu.ID(chatID), statusMsg.MessageID, resultText).WithParseMode(telego.ModeMarkdown)
+		_, _ = bot.EditMessageText(context.Background(), editParams)
+	}()
+}
+
+func (b *Bot) appendLogBlock(baseText, logOut string) string {
+	if len(logOut) == 0 {
+		return baseText
+	}
+
+	maxLogLen := 1500
+	if len(logOut) > maxLogLen {
+		// 保留尾部核心错误日志
+		logOut = logOut[len(logOut)-maxLogLen:]
+		return baseText + fmt.Sprintf("\n\n📄 **控制台输出 (截取尾部):**\n```\n%s\n```", logOut)
+	}
+
+	return baseText + fmt.Sprintf("\n\n📄 **控制台输出:**\n```\n%s\n```", logOut)
 }

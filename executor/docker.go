@@ -33,12 +33,12 @@ func (e *Executor) CleanupDanglingImages() {
 	cmd.Run()
 }
 
-func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, imageTag string) (string, error) {
+func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, imageTag string) (string, string, error) {
 	// 每次执行动态获取最新配置
 	cfg := e.cfgMgr.Get()
 	env, ok := cfg.Envs[envName]
 	if !ok {
-		return "", fmt.Errorf("environment %s not found", envName)
+		return "", "", fmt.Errorf("environment %s not found", envName)
 	}
 
 	opts := BuildOptions{
@@ -67,13 +67,16 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 
 	buildRet, err := e.runCmd(buildCtx, streamOutput, "docker", cmdArgs...)
 	if err != nil {
-		return buildRet, fmt.Errorf("build failed: %w", err)
+		return buildRet, "", fmt.Errorf("build failed: %w", err)
 	}
 
 	if env.Registry != "" {
-		return e.runCmd(buildCtx, streamOutput, "docker", "push", imageName)
+		out, err := e.runCmd(buildCtx, streamOutput, "docker", "push", imageName)
+		if err != nil {
+			return out, imageName, fmt.Errorf("push failed: %w", err)
+		}
 	}
-	return buildRet, nil
+	return buildRet, imageName, nil
 }
 
 func (e *Executor) RestartCompose(envName string, services []string, force bool, streamOutput bool) (string, error) {

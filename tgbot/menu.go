@@ -35,10 +35,8 @@ func genCallbackData(action CallbackAction, env, svc string) string {
 func (b *Bot) buildMainMenu(env string) *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("🔨 构建微服务").WithCallbackData(genCallbackData(ActionMenuBuild, env, "")),
-		),
-		tu.InlineKeyboardRow(
-			tu.InlineKeyboardButton("🔄 强制重启 (Compose Up)").WithCallbackData(genCallbackData(ActionMenuRestart, env, "")),
+			tu.InlineKeyboardButton("🔨 构建服务").WithCallbackData(genCallbackData(ActionMenuBuild, env, "")),
+			tu.InlineKeyboardButton("🔄 重启服务").WithCallbackData(genCallbackData(ActionMenuRestart, env, "")),
 		),
 		/*
 			tu.InlineKeyboardRow(
@@ -53,20 +51,36 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 	var rows [][]telego.InlineKeyboardButton
 	cfg := b.cfgMgr.Get()
 
+	var colBtnCount = 3 // 每行按钮数量
+
 	switch subMenu {
 	case ActionMenuBuild:
-		// 遍历应用列表生成构建按钮
-		for _, app := range cfg.Apps {
+		var row []telego.InlineKeyboardButton
+		for i, app := range cfg.Apps {
+			if i%colBtnCount == 0 && i != 0 {
+				rows = append(rows, row)
+				row = []telego.InlineKeyboardButton{}
+			}
 			btn := tu.InlineKeyboardButton(fmt.Sprintf("🔨 %s", app)).
 				WithCallbackData(genCallbackData(ActionDoBuild, env, app))
-			rows = append(rows, tu.InlineKeyboardRow(btn))
+			row = append(row, btn)
+		}
+		if len(row) > 0 {
+			rows = append(rows, row)
 		}
 	case ActionMenuRestart:
-		// 遍历应用列表生成重启按钮
-		for _, app := range cfg.Apps {
+		var row []telego.InlineKeyboardButton
+		for i, app := range cfg.Apps {
+			if i%colBtnCount == 0 && i != 0 {
+				rows = append(rows, row)
+				row = []telego.InlineKeyboardButton{}
+			}
 			btn := tu.InlineKeyboardButton(fmt.Sprintf("🔄 %s", app)).
 				WithCallbackData(genCallbackData(ActionDoRestart, env, app))
-			rows = append(rows, tu.InlineKeyboardRow(btn))
+			row = append(row, btn)
+		}
+		if len(row) > 0 {
+			rows = append(rows, row)
 		}
 	}
 
@@ -76,6 +90,11 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 	rows = append(rows, tu.InlineKeyboardRow(backBtn))
 
 	return tu.InlineKeyboard(rows...)
+}
+
+func (b *Bot) switchMenu(ctx context.Context, bot *telego.Bot, chatID int64, msgID int, text string, menu *telego.InlineKeyboardMarkup) {
+	editMsg := tu.EditMessageText(tu.ID(chatID), msgID, text).WithReplyMarkup(menu)
+	_, _ = bot.EditMessageText(ctx, editMsg)
 }
 
 // SendDeploymentMenu 接收代码更新通知，并渲染主操作菜单
@@ -90,7 +109,7 @@ func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commi
 		"🌍 **当前环境:** `%s`\n"+
 		"👤 **提交人员:** %s\n"+
 		"🏷 **Commit:** `%s`\n"+
-		"💬 **更新日志:** %s\n\n"+
+		"💬 **提交日志:** %s\n\n"+
 		"👇 **请选择操作:**",
 		envCfg.Desc, author, commitHash[:7], commitMsg)
 
