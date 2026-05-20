@@ -4,6 +4,8 @@
 它支持**本地交互式 CLI 菜单** 与 **后台 Webhook 守护进程（结合 Telegram Bot）** 双模式运行。
 旨在简化多微服务环境下的 Docker 构建与 Docker Compose 容器编排工作流。
 
+大部分代码由AI生成
+
 ---
 
 ## 🌟 核心特性

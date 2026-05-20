@@ -98,6 +98,11 @@ func (b *Bot) asyncBuildTask(ctx context.Context, bot *telego.Bot, chatID int64,
 		return
 	}
 
+	var envDesc = data.Env
+	if envCfg, ok := b.cfgMgr.Get().Envs[data.Env]; ok {
+		envDesc = envCfg.Desc
+	}
+
 	go func() {
 		// 执行构建
 		out, imageID, err := b.exe.BuildAndPushService(data.Env, data.Svc, false, "")
@@ -105,13 +110,13 @@ func (b *Bot) asyncBuildTask(ctx context.Context, bot *telego.Bot, chatID int64,
 		// 组装最终文本
 		var resultText string
 		if err != nil {
-			resultText = fmt.Sprintf("❌ **[构建任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, data.Env, err)
+			resultText = fmt.Sprintf("❌ **[构建任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, envDesc, err)
 		} else {
 			shortID := imageID
 			if len(shortID) > 12 {
 				shortID = shortID[:12]
 			}
-			resultText = fmt.Sprintf("✅ **[构建任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n🆔 **镜像 ID:** `%s`", data.Svc, data.Env, shortID)
+			resultText = fmt.Sprintf("✅ **[构建任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n🆔 **镜像 ID:** `%s`", data.Svc, envDesc, shortID)
 		}
 
 		// 附加安全拦截后的日志输出
@@ -139,10 +144,14 @@ func (b *Bot) asyncRestartTask(ctx context.Context, bot *telego.Bot, chatID int6
 
 		// 组装最终文本
 		var resultText string
+		var envDesc = data.Env
+		if envCfg, ok := b.cfgMgr.Get().Envs[data.Env]; ok {
+			envDesc = envCfg.Desc
+		}
 		if err != nil {
-			resultText = fmt.Sprintf("❌ **[重启任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, data.Env, err)
+			resultText = fmt.Sprintf("❌ **[重启任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, envDesc, err)
 		} else {
-			resultText = fmt.Sprintf("✅ **[重启任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n📊 **当前状态:** 服务已成功拉起并处于活跃状态。", data.Svc, data.Env)
+			resultText = fmt.Sprintf("✅ **[重启任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n📊 **当前状态:** 服务已成功拉起并处于活跃状态。", data.Svc, envDesc)
 		}
 
 		// 附加安全拦截后的日志输出
@@ -159,7 +168,7 @@ func (b *Bot) appendLogBlock(baseText, logOut string) string {
 		return baseText
 	}
 
-	maxLogLen := 1500
+	maxLogLen := 500
 	if len(logOut) > maxLogLen {
 		// 保留尾部核心错误日志
 		logOut = logOut[len(logOut)-maxLogLen:]
