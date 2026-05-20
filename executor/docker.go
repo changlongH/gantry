@@ -4,7 +4,28 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/changlongH/gantry/consts"
 )
+
+func (e *Executor) GetSvcImageName(opts BuildOptions) string {
+	cfg := e.cfgMgr.Get()
+	env := cfg.Envs[opts.EnvName]
+
+	imageTag := opts.ImageTag
+	if imageTag == "" {
+		imageTag = consts.GenImageTagByStrategy(env.ImageTagStrategy, opts.EnvName)
+	}
+
+	sanitizedSvc := strings.ReplaceAll(opts.Service, "/", "-")
+	image := fmt.Sprintf("%s:%s", sanitizedSvc, imageTag)
+
+	if env.Registry != "" {
+		image = fmt.Sprintf("%s/%s", env.Registry, image)
+	}
+	return image
+}
 
 // CleanupDanglingImages 清理悬空镜像（dangling images）
 func (e *Executor) CleanupDanglingImages() {
@@ -53,4 +74,31 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 		return e.runCmd(buildCtx, streamOutput, "docker", "push", imageName)
 	}
 	return buildRet, nil
+}
+
+func (e *Executor) RestartCompose(envName string, services []string, force bool, streamOutput bool) (string, error) {
+	cfg := e.cfgMgr.Get()
+	env, ok := cfg.Envs[envName]
+	if !ok {
+		return "", fmt.Errorf("environment %s not found", envName)
+	}
+
+	dir := filepath.Dir(env.ComposeFile)
+	file := filepath.Base(env.ComposeFile)
+
+	// 基础命令
+	cmdArgs := []string{"-f", file, "up", "-d"}
+
+	// 如果设置了强制重启，添加参数
+	if force {
+		cmdArgs = append(cmdArgs, "--force-recreate")
+	}
+
+	// 如果指定了服务列表，则只处理这些服务
+	if len(services) > 0 {
+		cmdArgs = append(cmdArgs, "--no-deps") // 可选：不自动拉起依赖容器，仅重启目标
+		cmdArgs = append(cmdArgs, services...)
+	}
+
+	return e.runCmd(dir, streamOutput, "docker", append([]string{"compose"}, cmdArgs...)...)
 }

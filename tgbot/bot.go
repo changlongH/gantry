@@ -3,12 +3,14 @@ package tgbot
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/changlongH/gantry/config"
 	"github.com/changlongH/gantry/executor"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 type Bot struct {
@@ -45,51 +47,81 @@ func (b *Bot) Start() {
 	bh.Start()
 }
 
-func (b *Bot) handleCallback(ctx *th.Context, query telego.CallbackQuery) error {
+func (b *Bot) handleCallback(thCtx *th.Context, query telego.CallbackQuery) error {
 	// 应答回调，防止按钮转圈
-	err := ctx.Bot().AnswerCallbackQuery(ctx.Context(), &telego.AnswerCallbackQueryParams{
-		CallbackQueryID: query.ID,
-	})
+	err := thCtx.Bot().AnswerCallbackQuery(thCtx.Context(), tu.CallbackQuery(query.ID))
 	if err != nil {
 		return err
 	}
 
-	// 解析数据 (假设你使用 JSON 格式)
+	// 解析按钮数据
 	var data CallbackData
 	if err := json.Unmarshal([]byte(query.Data), &data); err != nil {
 		return err
 	}
 
-	// 业务逻辑处理
-	switch data.Action {
-	case "build":
-		// 这里可以直接使用 ctx 进行后续的消息编辑
-		// 例如：ctx.EditMessageText(...)
-		go b.runBuild(ctx, data.Env, data.Svc, query.Message.GetChat().ID)
-	case "restart":
-		//go b.runRestart(ctx, data.Env, query.Message)
+	ctx := thCtx.Context()
+	bot := thCtx.Bot()
+	chatID := query.Message.GetChat().ID
+	msgID := query.Message.GetMessageID()
+	// 保持头部消息不变
+	baseText := query.Message.Message().Text
+
+	switch CallbackAction(data.Action) {
+	case ActionMenuMain:
+		// 返回主菜单
+		menu := b.buildMainMenu(data.Env)
+		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
+		_, _ = bot.EditMessageText(ctx, editMsg)
+	case ActionMenuBuild:
+		menu := b.buildServiceMenu(data.Env, ActionMenuBuild)
+		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
+		_, _ = bot.EditMessageText(ctx, editMsg)
+	case ActionMenuRestart:
+		menu := b.buildServiceMenu(data.Env, ActionMenuRestart)
+		editMsg := tu.EditMessageText(tu.ID(chatID), msgID, baseText).WithReplyMarkup(menu)
+		_, _ = bot.EditMessageText(ctx, editMsg)
+	case ActionDoBuild:
+		// 移除按钮，提示执行中
+		_, _ = bot.EditMessageText(ctx, tu.EditMessageText(tu.ID(chatID), msgID,
+			fmt.Sprintf("⏳ 正在构建服务 `%s` [%s]...\n\n%s", data.Svc, data.Env, baseText)).
+			WithParseMode(telego.ModeMarkdown))
+
+		// 异步执行，防止阻塞其他指令
+		go func() {
+			out, err := b.exe.BuildAndPushService(data.Env, data.Svc, false, "")
+			b.sendExecutionResult(bot, chatID, "构建", data.Svc, out, err)
+		}()
+	case ActionDoRestart:
+		// 移除按钮，提示执行中
+		_, _ = bot.EditMessageText(ctx, tu.EditMessageText(tu.ID(chatID), msgID,
+			fmt.Sprintf("⏳ 正在重启服务 `%s` [%s]...\n\n%s", data.Svc, data.Env, baseText)).
+			WithParseMode(telego.ModeMarkdown))
+
+		// 异步执行，防止阻塞其他指令
+		go func() {
+			out, err := b.exe.RestartCompose(data.Env, []string{data.Svc}, true, false)
+			b.sendExecutionResult(bot, chatID, "重启", data.Svc, out, err)
+		}()
 	}
 
 	return nil
 }
 
-// 统一的执行逻辑，保持与 CLI 风格一致
-func (b *Bot) runBuild(ctx *th.Context, env, svc string, chatID int64) {
-	/*
-		msg, _ := b.bot.SendMessage(ctx.Context(), &telego.SendMessageParams{
-			ChatID: telego.ChatID{ID: chatID},
-			Text:   fmt.Sprintf("🔨 构建 %s [%s]...", svc, env),
-		})
+// sendExecutionResult 统一格式化输出执行结果
+func (b *Bot) sendExecutionResult(bot *telego.Bot, chatID int64, action, target, out string, err error) {
+	var text string
+	if err != nil {
+		text = fmt.Sprintf("❌ %s `%s` 失败:\n```\n%v\n%s\n```", action, target, err, out)
+	} else {
+		text = fmt.Sprintf("✅ %s `%s` 成功!", action, target)
+	}
 
-		tag := "latest" // 逻辑同前文
-		out, err := b.exe.BuildAndPushService(env, svc, false, tag)
-		if err != nil {
-			// 构建失败，编辑消息显示错误
-			ctx.EditMessageText(fmt.Sprintf("❌ 构建失败: %v\n日志输出:\n%s", err, out))
-			return
-		}
+	// 截断防止超长
+	if len(text) > 4000 {
+		text = text[:4000] + "\n...[输出过长被截断]"
+	}
 
-		// 编辑消息显示结果
-		//b.updateStatus(chatID, msg.MessageID, err, out)
-	*/
+	msg := tu.Message(tu.ID(chatID), text).WithParseMode(telego.ModeMarkdown)
+	_, _ = bot.SendMessage(context.Background(), msg)
 }

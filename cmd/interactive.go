@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/changlongH/gantry/config"
@@ -20,6 +21,13 @@ type ActionHandler func(envName string, envCfg config.Environment)
 type MenuAction struct {
 	Label   string
 	Handler ActionHandler
+}
+
+var customIcons = func(icons *survey.IconSet) {
+	//icons.SelectFocus.Format = ""     // 选中焦点时的箭头
+	icons.Question.Format = "❓"       // 问题图标
+	icons.MarkedOption.Text = "[✅]"   // 选中的勾选框
+	icons.UnmarkedOption.Text = "[x]" // 未选中的框
 }
 
 func NewInteractiveCLI(cfgMgr *config.Manager) *InteractiveCLI {
@@ -77,14 +85,26 @@ func (cli *InteractiveCLI) selectEnvironment(cfg *config.Config) string {
 	for k := range cfg.Envs {
 		envs = append(envs, k)
 	}
+	// 默认选项是第一个环境，通常是测试环境
+	sort.Strings(envs)
+	for i, env := range envs {
+		if env == consts.EnvTest {
+			if i != 0 {
+				// 将测试环境放到首位
+				envs[0], envs[i] = envs[i], envs[0]
+			}
+			break
+		}
+	}
 
 	var selected string
 	prompt := &survey.Select{
 		Message:     "🚧 请选择目标环境:",
 		Options:     envs,
 		Description: func(v string, i int) string { return cfg.Envs[v].Desc },
+		Default:     envs[0],
 	}
-	survey.AskOne(prompt, &selected)
+	survey.AskOne(prompt, &selected, survey.WithIcons(customIcons))
 	return selected
 }
 
@@ -101,13 +121,6 @@ func (cli *InteractiveCLI) confirmProduction() bool {
 func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Environment) {
 	// 支持多个服务构建，用户可以选择一个或多个服务进行构建
 	var selectedSvcs []string
-
-	customIcons := func(icons *survey.IconSet) {
-		//icons.SelectFocus.Format = ""     // 选中焦点时的箭头
-		icons.Question.Format = "❓"       // 问题图标
-		icons.MarkedOption.Text = "[✅]"   // 选中的勾选框
-		icons.UnmarkedOption.Text = "[x]" // 未选中的框
-	}
 
 	svcPrompt := &survey.MultiSelect{
 		Message: "选择要构建的服务 (使用 [空格键] 勾选/取消，[回车] 确认):",
@@ -156,7 +169,7 @@ func (cli *InteractiveCLI) handleComposeRestart(envName string, envCfg config.En
 		Message: "选择要强制重启的服务 (默认全选):",
 		Options: allServices,
 	}
-	survey.AskOne(svcPrompt, &selectedSvcs)
+	survey.AskOne(svcPrompt, &selectedSvcs, survey.WithIcons(customIcons))
 
 	// 2. 询问是否强制重建 (force)
 	//force := false
