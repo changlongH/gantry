@@ -60,7 +60,10 @@ func InitManager(path string) (*Manager, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	mgr := &Manager{cfg: &cfg}
+	mgr := &Manager{
+		cfg:          &cfg,
+		serviceCache: make(map[string][]string),
+	}
 
 	// 开启 Viper 的配置监听机制
 	viper.WatchConfig()
