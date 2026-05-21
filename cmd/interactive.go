@@ -126,7 +126,7 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 
 	svcPrompt := &survey.MultiSelect{
 		Message: "选择要构建的服务 (使用 [空格键] 勾选/取消，[回车] 确认):",
-		Options: cli.cfgMgr.Get().Apps,
+		Options: cli.cfgMgr.GetAppServices(envName),
 	}
 	if err := survey.AskOne(svcPrompt, &selectedSvcs, survey.WithIcons(customIcons)); err != nil {
 		return
@@ -163,20 +163,32 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 
 func (cli *InteractiveCLI) handleComposeRestart(envName string, envCfg config.Environment) {
 	// 获取该环境下的所有服务列表
-	allServices := cli.cfgMgr.Get().Apps
+	allServices := cli.cfgMgr.GetDockerComposeServices(envName)
+	if len(allServices) == 0 {
+		fmt.Println("⚠️ 未在 docker-compose.yaml 中找到任何有效服务。")
+		return
+	}
 
+	allServices = append([]string{"全部服务"}, allServices...) // 增加一个选项用于重启全部服务
 	var selectedSvcs []string
 	svcPrompt := &survey.MultiSelect{
-		Message: "选择要强制重启的服务 (默认全选):",
+		Message: "选择要强制重启的服务（可多选）:",
 		Options: allServices,
+		//Default: allServices[0], // 默认选中“全部服务”
 	}
 	survey.AskOne(svcPrompt, &selectedSvcs, survey.WithIcons(customIcons))
+
+	if len(selectedSvcs) <= 0 {
+		fmt.Printf("👋 未选择任何服务，操作已取消。\n")
+		return
+	}
 
 	// 2. 询问是否强制重建 (force)
 	//force := false
 	//survey.AskOne(&survey.Confirm{Message: "是否执行 --force-recreate (重建容器)?", Default: true}, &force)
 
 	// 3. 执行重启
+	fmt.Printf("⏳ 正在重启服务 %v ...\n", selectedSvcs)
 	output, err := cli.exe.RestartCompose(envName, selectedSvcs, true, true)
 	if err != nil {
 		fmt.Printf("❌ 重启失败: %v\n%s\n", err, output)

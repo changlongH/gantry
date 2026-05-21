@@ -49,14 +49,13 @@ func (b *Bot) buildMainMenu(env string) *telego.InlineKeyboardMarkup {
 // buildServiceMenu 构造第二级子菜单（选择要构建的具体服务）
 func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.InlineKeyboardMarkup {
 	var rows [][]telego.InlineKeyboardButton
-	cfg := b.cfgMgr.Get()
 
 	var colBtnCount = 3 // 每行按钮数量
 
 	switch subMenu {
 	case ActionMenuBuild:
 		var row []telego.InlineKeyboardButton
-		for i, app := range cfg.Apps {
+		for i, app := range b.cfgMgr.GetAppServices(env) {
 			if i%colBtnCount == 0 && i != 0 {
 				rows = append(rows, row)
 				row = []telego.InlineKeyboardButton{}
@@ -70,7 +69,7 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 		}
 	case ActionMenuRestart:
 		var row []telego.InlineKeyboardButton
-		for i, app := range cfg.Apps {
+		for i, app := range b.cfgMgr.GetDockerComposeServices(env) {
 			if i%colBtnCount == 0 && i != 0 {
 				rows = append(rows, row)
 				row = []telego.InlineKeyboardButton{}

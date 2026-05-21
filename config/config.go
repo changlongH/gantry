@@ -3,10 +3,12 @@ package config
 import (
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v3"
 )
 
 type Config struct {
@@ -42,6 +44,8 @@ type Environment struct {
 type Manager struct {
 	mu  sync.RWMutex
 	cfg *Config
+
+	serviceCache map[string][]string // 局部缓存：key为 envName，value为该环境下的服务列表
 }
 
 func InitManager(path string) (*Manager, error) {
@@ -72,6 +76,7 @@ func InitManager(path string) (*Manager, error) {
 		// 通过写锁安全替换全局配置指针
 		mgr.mu.Lock()
 		mgr.cfg = &newCfg
+		mgr.serviceCache = make(map[string][]string) // 配置变更后清空服务列表缓存
 		mgr.mu.Unlock()
 
 		log.Println("✅ Config hot-reloaded successfully.")
@@ -85,4 +90,61 @@ func (m *Manager) Get() *Config {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.cfg
+}
+
+// GetAppServices 获取指定环境下的服务列表
+func (m *Manager) GetAppServices(envName string) []string {
+	cfg := m.Get()
+	return cfg.Apps
+}
+
+// GetDockerComposeServices 动态解析指定环境的 Compose 文件获取真实服务列表。
+func (m *Manager) GetDockerComposeServices(envName string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 1. 如果缓存中已有数据，直接返回缓存结果
+	if list, exists := m.serviceCache[envName]; exists {
+		return list
+	}
+
+	// 2. 查找环境配置
+	env, ok := m.cfg.Envs[envName]
+	if !ok || env.ComposeFile == "" {
+		return nil
+	}
+
+	// 3. 动态解析对应的 docker-compose.yaml
+	services, err := parseComposeServices(env.ComposeFile)
+	if err != nil {
+		log.Printf("⚠️ Failed to parse compose file [%s] for env [%s]: %v.", env.ComposeFile, envName, err)
+		return nil
+	}
+
+	// 4. 将成功解析的结果写入缓存
+	m.serviceCache[envName] = services
+	return services
+}
+
+// 内部私有辅助函数：专门负责反序列化 yaml
+func parseComposeServices(filePath string) ([]string, error) {
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var composeData struct {
+		Services map[string]interface{} `yaml:"services"`
+	}
+
+	if err := yaml.Unmarshal(fileBytes, &composeData); err != nil {
+		return nil, err
+	}
+
+	services := make([]string, 0, len(composeData.Services))
+	for svcName := range composeData.Services {
+		services = append(services, svcName)
+	}
+
+	return services, nil
 }
