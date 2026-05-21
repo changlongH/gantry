@@ -31,6 +31,15 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var secret = s.cfgMgr.Get().Server.Secret
+	if secret != "" {
+		reqSecret := r.Header.Get("X-Secret")
+		if reqSecret != secret {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
 	var payload WebhookPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)

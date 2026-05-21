@@ -78,6 +78,7 @@ nohup ./gantry --mode server --config ./config.yaml > server.log 2>&1 &
   run: |
     curl -X POST http://${{ secrets.SERVER_IP }}:6780/webhook \
          -H "Content-Type: application/json" \
+         -H "X-Secret: gantry#2026" \
          -d '{
                "branch": "${{ github.ref_name }}",
                "commit_hash": "${{ github.sha }}",
