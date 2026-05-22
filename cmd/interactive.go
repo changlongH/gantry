@@ -54,6 +54,7 @@ func (cli *InteractiveCLI) Run() {
 	actions := []MenuAction{
 		{Label: "🔨 构建服务 (Build)", Handler: cli.handleServiceBuild},
 		{Label: "🔄 重启容器 (Compose)", Handler: cli.handleComposeRestart},
+		{Label: "📦 同步源码 (Sync)", Handler: cli.handleSyncSource},
 		{Label: "🧹 清理镜像 (Prune)", Handler: cli.handlePruneImages},
 		{Label: "🚪 退出程序 (Exit)", Handler: func(e string, c config.Environment) { os.Exit(0) }},
 	}
@@ -204,4 +205,13 @@ func (cli *InteractiveCLI) handleComposeRestart(envName string, envCfg config.En
 
 func (cli *InteractiveCLI) handlePruneImages(envName string, envCfg config.Environment) {
 	cli.exe.CleanupDanglingImages()
+}
+
+func (cli *InteractiveCLI) handleSyncSource(envName string, envCfg config.Environment) {
+	output, err := cli.exe.SyncCode(envName, true)
+	if err != nil {
+		fmt.Printf("❌ 同步失败: %v\n%s\n", err, output)
+		return
+	}
+	fmt.Println("✅ 同步完成。")
 }
