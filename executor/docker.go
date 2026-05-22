@@ -11,18 +11,18 @@ import (
 
 func (e *Executor) GetSvcImageName(opts BuildOptions) string {
 	cfg := e.cfgMgr.Get()
-	env := cfg.Envs[opts.EnvName]
+	envCfg := cfg.Envs[opts.EnvName]
 
 	imageTag := opts.ImageTag
 	if imageTag == "" {
-		imageTag = consts.GenImageTagByStrategy(env.ImageTagStrategy, opts.EnvName)
+		imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, opts.EnvName)
 	}
 
 	sanitizedSvc := strings.ReplaceAll(opts.Service, "/", "-")
 	image := fmt.Sprintf("%s:%s", sanitizedSvc, imageTag)
 
-	if env.Registry != "" {
-		image = fmt.Sprintf("%s/%s", env.Registry, image)
+	if envCfg.Docker.Registry != "" {
+		image = fmt.Sprintf("%s/%s", envCfg.Docker.Registry, image)
 	}
 	return image
 }
@@ -36,7 +36,7 @@ func (e *Executor) CleanupDanglingImages() {
 func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, imageTag string) (string, string, error) {
 	// 每次执行动态获取最新配置
 	cfg := e.cfgMgr.Get()
-	env, ok := cfg.Envs[envName]
+	envCfg, ok := cfg.Envs[envName]
 	if !ok {
 		return "", "", fmt.Errorf("environment %s not found", envName)
 	}
@@ -48,19 +48,19 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 	}
 
 	imageName := e.GetSvcImageName(opts)
-	buildCtx := filepath.Join(env.BuildPath, svc)
+	buildCtx := filepath.Join(envCfg.SrcPath, svc)
 
 	// 基础构建参数
 	cmdArgs := []string{"build", "-t", imageName}
 
 	// 拼接命令参数: --build-arg KEY=VALUE
-	for k, v := range env.BuildArgs {
+	for k, v := range envCfg.Docker.BuildArgs {
 		cmdArgs = append(cmdArgs, "--build-arg", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	// 是否指定dockerfile
-	if env.Dockerfile != "" && env.Dockerfile != "Dockerfile" {
-		cmdArgs = append(cmdArgs, "-f", env.Dockerfile)
+	if envCfg.Docker.Dockerfile != "" && envCfg.Docker.Dockerfile != "Dockerfile" {
+		cmdArgs = append(cmdArgs, "-f", envCfg.Docker.Dockerfile)
 	}
 
 	cmdArgs = append(cmdArgs, ".")
@@ -70,7 +70,7 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 		return buildRet, "", fmt.Errorf("build failed: %w", err)
 	}
 
-	if env.Registry != "" {
+	if envCfg.Docker.Registry != "" {
 		out, err := e.runCmd(buildCtx, streamOutput, "docker", "push", imageName)
 		if err != nil {
 			return out, imageName, fmt.Errorf("push failed: %w", err)
@@ -81,13 +81,13 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 
 func (e *Executor) RestartCompose(envName string, services []string, force bool, streamOutput bool) (string, error) {
 	cfg := e.cfgMgr.Get()
-	env, ok := cfg.Envs[envName]
+	envCfg, ok := cfg.Envs[envName]
 	if !ok {
 		return "", fmt.Errorf("environment %s not found", envName)
 	}
 
-	dir := filepath.Dir(env.ComposeFile)
-	file := filepath.Base(env.ComposeFile)
+	dir := filepath.Dir(envCfg.Docker.ComposeFile)
+	file := filepath.Base(envCfg.Docker.ComposeFile)
 
 	// 基础命令
 	cmdArgs := []string{"-f", file, "up", "-d"}

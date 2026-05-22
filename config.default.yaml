@@ -13,25 +13,46 @@ apps:
 
 environments:
   test:
+    is_prod: false # 是否生产环境 需要二次确认操作
     desc: "测试环境"
-    branch: "develop"
-    project_path: "/data/src/test/apps" # 项目源码路径
-    compose_file: "/root/deploy-server/docker-compose.yml"
-    build_path: "/data/src/test/apps/output" # 编译产物路径
-    registry: ""
-    dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
-    build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=test .
-      ENV: "test"
-    image_tag_strategy: "latest" # 固定latest 标签
+    git:
+      repository: "changlongH/gantry" # git仓库全名，例如 "myorg/myrepo"
+      branch: "develop"
+    docker:
+      compose_file: "/root/deploy-server/docker-compose.yml"
+      registry: ""
+      dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
+      image_tag_strategy: "latest" # 固定latest 标签
+      build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=test .
+        ENV: "test"
+
+    src_path: "/data/src/test/apps" # 项目源码路径
+    output_path: "/data/src/test/apps/output" # 编译产物路径
+
 
   prod:
+    is_prod: true # 是否生产环境 需要二次确认操作
     desc: "生产环境"
-    branch: "release"
-    project_path: "/data/src/release/apps" # 项目源码路径
-    compose_file: "/root/deploy-server/docker-compose.yml"
-    build_path: "/data/src/release/apps/output" # 编译产物路径
-    registry: "localhost:5000"
-    dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
-    build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=prod .
-      ENV: "prod"
-    image_tag_strategy: "timestamp" # 格式 20260102-150405-prod
+    git:
+      repository: "changlongH/gantry" # git仓库全名，例如 "myorg/myrepo"
+      branch: "release"
+    docker:
+      compose_file: "/root/deploy-server/docker-compose.yml"
+      registry: "localhost:5000"
+      dockerfile: "" # 可选项，默认为项目根目录下的 Dockerfile 相对路径
+      image_tag_strategy: "timestamp" # 格式 20260102-150405-prod
+      build_args: # 动态扩展构建参数 docker build -t image:tag --build-arg ENV=prod .
+        ENV: "prod"
+    sync:
+      remote_path: "/data/release/apps" # 远程服务器部署路径
+      remote_user: "deploy" # 远程服务器登录用户
+      remote_ips: # 远程服务器IP列表
+        - "192.168.1.100"
+      rsync_exclude: # 同步排除规则，支持rsync exclude语法
+        - "logs/"
+        - "*.tmp"
+      rsync_options: "-avz --delete" # rsync额外选项
+      rsync_key: "/root/.ssh/id_rsa" # rsync使用的SSH私钥路径
+
+    src_path: "/data/src/release/apps" # 项目源码路径
+    output_path: "/data/src/release/apps/output" # 编译产物路径

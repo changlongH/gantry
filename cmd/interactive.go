@@ -46,7 +46,7 @@ func (cli *InteractiveCLI) Run() {
 	envCfg := cli.cfgMgr.Get().Envs[selectedEnv]
 
 	// 2. 生产环境安全拦截
-	if selectedEnv == consts.EnvProd && !cli.confirmEnv(envCfg.Desc) {
+	if envCfg.IsProd && !cli.confirmEnv(envCfg.Desc) {
 		return
 	}
 
@@ -86,17 +86,22 @@ func (cli *InteractiveCLI) selectEnvironment(cfg *config.Config) string {
 	for k := range cfg.Envs {
 		envs = append(envs, k)
 	}
-	// 默认选项是第一个环境，通常是测试环境
-	sort.Strings(envs)
-	for i, env := range envs {
-		if env == consts.EnvTest {
-			if i != 0 {
-				// 将测试环境放到首位
-				envs[0], envs[i] = envs[i], envs[0]
-			}
-			break
+
+	// 非生产环境优先，同类型按字典序排序
+	sort.Slice(envs, func(i, j int) bool {
+		// 获取两个环境的配置
+		cfgI := cfg.Envs[envs[i]]
+		cfgJ := cfg.Envs[envs[j]]
+
+		// 核心规则：非生产环境 排在 生产环境 前面
+		if !cfgI.IsProd && cfgJ.IsProd {
+			return true
 		}
-	}
+		if cfgI.IsProd && !cfgJ.IsProd {
+			return false
+		}
+		return envs[i] < envs[j]
+	})
 
 	var selected string
 	prompt := &survey.Select{
@@ -138,7 +143,7 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 		return
 	}
 
-	var imageTag = consts.GenImageTagByStrategy(envCfg.ImageTagStrategy, envName)
+	var imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, envName)
 	// 用于记录批量构建中，哪些服务真正构建成功了（后续只推送成功的服务）
 	var successSvcs []string
 

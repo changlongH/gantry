@@ -28,16 +28,43 @@ type ServerConfig struct {
 	Secret  string `mapstructure:"secret"`
 }
 
-type Environment struct {
-	Desc             string            `mapstructure:"desc"`               // 环境描述信息
-	ProjectPath      string            `mapstructure:"project_path"`       // 项目源码路径
-	BuildPath        string            `mapstructure:"build_path"`         // 编译产物路径
-	ComposeFile      string            `mapstructure:"compose_file"`       // Docker Compose 文件路径
+type GitConfig struct {
+	Repository string `mapstructure:"repository"` // 仓库名称例如 "myorg/myrepo"
+	Branch     string `mapstructure:"branch"`
+}
+
+type DockerConfig struct {
 	Registry         string            `mapstructure:"registry"`           // 镜像仓库地址，留空表示不推送
-	Branch           string            `mapstructure:"branch"`             // 当前环境对应的 Git 分支
 	Dockerfile       string            `mapstructure:"dockerfile"`         // 可选项，默认为项目根目录下的 Dockerfile 相对路径
+	ComposeFile      string            `mapstructure:"compose_file"`       // Docker Compose 文件路径
 	BuildArgs        map[string]string `mapstructure:"build_args"`         // 构建扩展参数
 	ImageTagStrategy string            `mapstructure:"image_tag_strategy"` // 镜像标签策略
+}
+
+type SyncStep struct {
+	Name          string   `yaml:"name"`
+	LocalSubPath  string   `yaml:"local_sub_path"`
+	RemoteSubPath string   `yaml:"remote_sub_path"`
+	RsyncOptions  string   `yaml:"rsync_options"`
+	Exclude       []string `yaml:"exclude"`
+}
+
+type SyncConfig struct {
+	RemoteUser string     `yaml:"remote_user"`
+	RemoteIPs  []string   `yaml:"remote_ips"`
+	RsyncKey   string     `yaml:"rsync_key"`
+	RemotePath string     `yaml:"remote_path"`
+	Steps      []SyncStep `yaml:"steps"` // 支持多步骤同步，每步可以定义不同的本地/远程路径和 rsync 选项
+}
+
+type Environment struct {
+	IsProd     bool         `mapstructure:"is_prod"`     // 是否生产环境
+	Desc       string       `mapstructure:"desc"`        // 环境描述信息
+	Git        GitConfig    `mapstructure:"git"`         // Git 仓库配置
+	Docker     DockerConfig `mapstructure:"docker"`      // Docker 构建配置
+	Sync       SyncConfig   `mapstructure:"sync"`        // 同步配置
+	SrcPath    string       `mapstructure:"src_path"`    // 项目源码路径
+	OutputPath string       `mapstructure:"output_path"` // 编译产物路径
 }
 
 // Manager 负责并发安全地管理配置
@@ -112,15 +139,15 @@ func (m *Manager) GetDockerComposeServices(envName string) []string {
 	}
 
 	// 2. 查找环境配置
-	env, ok := m.cfg.Envs[envName]
-	if !ok || env.ComposeFile == "" {
+	envCfg, ok := m.cfg.Envs[envName]
+	if !ok || envCfg.Docker.ComposeFile == "" {
 		return nil
 	}
 
 	// 3. 动态解析对应的 docker-compose.yaml
-	services, err := parseComposeServices(env.ComposeFile)
+	services, err := parseComposeServices(envCfg.Docker.ComposeFile)
 	if err != nil {
-		log.Printf("⚠️ Failed to parse compose file [%s] for env [%s]: %v.", env.ComposeFile, envName, err)
+		log.Printf("⚠️ Failed to parse compose file [%s] for env [%s]: %v.", envCfg.Docker.ComposeFile, envName, err)
 		return nil
 	}
 

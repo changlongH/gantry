@@ -6,12 +6,6 @@ import (
 )
 
 const (
-	// 环境选项
-	EnvProd = "prod"
-	EnvTest = "test"
-)
-
-const (
 	BranchRelease = "release"
 	BranchDevelop = "develop"
 	BranchMain    = "main"
