@@ -42,19 +42,19 @@ type DockerConfig struct {
 }
 
 type SyncStep struct {
-	Name          string   `yaml:"name"`
-	LocalSubPath  string   `yaml:"local_sub_path"`
-	RemoteSubPath string   `yaml:"remote_sub_path"`
-	RsyncOptions  string   `yaml:"rsync_options"`
-	Exclude       []string `yaml:"exclude"`
+	Name          string   `mapstructure:"name"`
+	LocalSubPath  string   `mapstructure:"local_sub_path"`
+	RemoteSubPath string   `mapstructure:"remote_sub_path"`
+	RsyncOptions  string   `mapstructure:"rsync_options"`
+	Exclude       []string `mapstructure:"exclude"`
 }
 
 type SyncConfig struct {
-	RemoteUser string     `yaml:"remote_user"`
-	RemoteIPs  []string   `yaml:"remote_ips"`
-	RsyncKey   string     `yaml:"rsync_key"`
-	RemotePath string     `yaml:"remote_path"`
-	Steps      []SyncStep `yaml:"steps"` // 支持多步骤同步，每步可以定义不同的本地/远程路径和 rsync 选项
+	RemoteUser string     `mapstructure:"remote_user"`
+	RemoteIPs  []string   `mapstructure:"remote_ips"`
+	RsyncKey   string     `mapstructure:"rsync_key"`
+	RemotePath string     `mapstructure:"remote_path"`
+	Steps      []SyncStep `mapstructure:"steps"` // 支持多步骤同步，每步可以定义不同的本地/远程路径和 rsync 选项
 }
 
 type Environment struct {
