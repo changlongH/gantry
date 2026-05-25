@@ -58,13 +58,13 @@ type SyncConfig struct {
 }
 
 type Environment struct {
-	IsProd     bool         `mapstructure:"is_prod"`     // 是否生产环境
-	Desc       string       `mapstructure:"desc"`        // 环境描述信息
-	Git        GitConfig    `mapstructure:"git"`         // Git 仓库配置
-	Docker     DockerConfig `mapstructure:"docker"`      // Docker 构建配置
-	Sync       SyncConfig   `mapstructure:"sync"`        // 同步配置
-	SrcPath    string       `mapstructure:"src_path"`    // 项目源码路径
-	OutputPath string       `mapstructure:"output_path"` // 编译产物路径
+	IsProd     bool          `mapstructure:"is_prod"`     // 是否生产环境
+	Desc       string        `mapstructure:"desc"`        // 环境描述信息
+	Git        GitConfig     `mapstructure:"git"`         // Git 仓库配置
+	Docker     *DockerConfig `mapstructure:"docker"`      // [可选] Docker 构建配置
+	Sync       *SyncConfig   `mapstructure:"sync"`        // [可选] 同步配置
+	SrcPath    string        `mapstructure:"src_path"`    // 项目源码路径
+	OutputPath string        `mapstructure:"output_path"` // 编译产物路径
 }
 
 // Manager 负责并发安全地管理配置

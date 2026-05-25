@@ -48,7 +48,7 @@ func (e *Executor) BuildAndPushService(envName, svc string, streamOutput bool, i
 	}
 
 	imageName := e.GetSvcImageName(opts)
-	buildCtx := filepath.Join(envCfg.SrcPath, svc)
+	buildCtx := filepath.Join(envCfg.OutputPath, svc)
 
 	// 基础构建参数
 	cmdArgs := []string{"build", "-t", imageName}

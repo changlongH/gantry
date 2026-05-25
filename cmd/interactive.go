@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -51,13 +50,7 @@ func (cli *InteractiveCLI) Run() {
 	}
 
 	// 3. 定义可扩展的操作菜单
-	actions := []MenuAction{
-		{Label: "🔨 构建服务 (Build)", Handler: cli.handleServiceBuild},
-		{Label: "🔄 重启容器 (Compose)", Handler: cli.handleComposeRestart},
-		{Label: "📦 同步源码 (Sync)", Handler: cli.handleSyncSource},
-		{Label: "🧹 清理镜像 (Prune)", Handler: cli.handlePruneImages},
-		{Label: "🚪 退出程序 (Exit)", Handler: func(e string, c config.Environment) { os.Exit(0) }},
-	}
+	actions := cli.buildMainMenu(envCfg)
 
 	// 提取 Label 用于渲染
 	var labels []string
