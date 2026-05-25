@@ -22,7 +22,11 @@ func (e *Executor) GetSvcImageName(opts BuildOptions) string {
 	image := fmt.Sprintf("%s:%s", sanitizedSvc, imageTag)
 
 	if envCfg.Docker.Registry != "" {
-		image = fmt.Sprintf("%s/%s", envCfg.Docker.Registry, image)
+		if strings.HasSuffix(envCfg.Docker.Registry, "/") {
+			image = fmt.Sprintf("%s%s", envCfg.Docker.Registry, image)
+		} else {
+			image = fmt.Sprintf("%s/%s", envCfg.Docker.Registry, image)
+		}
 	}
 	return image
 }
