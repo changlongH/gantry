@@ -7,15 +7,13 @@ import (
 )
 
 func (cli *InteractiveCLI) buildMainMenu(envCfg config.Environment) []MenuAction {
-	var actions = []MenuAction{
-		{Label: "🔨 构建服务 (Build)", Handler: cli.handleServiceBuild},
-	}
-	if envCfg.Sync != nil {
-		actions = append(actions, MenuAction{Label: "📦 同步源码 (Sync)", Handler: cli.handleSyncSource})
-	}
+	var actions = []MenuAction{}
 	if envCfg.Docker != nil {
-		actions = append(actions, MenuAction{Label: "🔄 重启容器 (Compose)", Handler: cli.handleComposeRestart})
-		actions = append(actions, MenuAction{Label: "🧹 清理镜像 (Prune)", Handler: cli.handlePruneImages})
+		actions = append(actions,
+			MenuAction{Label: "🔨 构建服务 (Build)", Handler: cli.handleServiceBuild},
+			MenuAction{Label: "🔄 重启容器 (Compose)", Handler: cli.handleComposeRestart},
+			MenuAction{Label: "🧹 清理镜像 (Prune)", Handler: cli.handlePruneImages},
+		)
 	}
 	if envCfg.Sync != nil {
 		actions = append(actions, MenuAction{Label: "📦 同步源码 (Sync)", Handler: cli.handleSyncSource})
