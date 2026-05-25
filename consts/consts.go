@@ -16,10 +16,14 @@ const (
 	ImageTagStrategyTimestamp = "timestamp" // 时间戳格式 20260102-150405-prod
 )
 
-func GenImageTagByStrategy(strategy string, envName string) string {
+func GenImageTagByStrategy(strategy string, isProd bool) string {
 	switch strategy {
 	case ImageTagStrategyTimestamp:
-		return fmt.Sprintf("%s-%s", time.Now().Format("20060102-150405"), envName)
+		if isProd {
+			return fmt.Sprintf("%s-prod", time.Now().Format("20060102-150405"))
+		} else {
+			return fmt.Sprintf("%s", time.Now().Format("20060102-150405"))
+		}
 	default:
 		return ImageTagStrategyLatest
 	}

@@ -15,7 +15,7 @@ func (e *Executor) GetSvcImageName(opts BuildOptions) string {
 
 	imageTag := opts.ImageTag
 	if imageTag == "" {
-		imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, opts.EnvName)
+		imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, envCfg.IsProd)
 	}
 
 	sanitizedSvc := strings.ReplaceAll(opts.Service, "/", "-")
