@@ -137,7 +137,7 @@ func (cli *InteractiveCLI) handleServiceBuild(envName string, envCfg config.Envi
 		return
 	}
 
-	var imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, envName)
+	var imageTag = consts.GenImageTagByStrategy(envCfg.Docker.ImageTagStrategy, envCfg.IsProd)
 	// 用于记录批量构建中，哪些服务真正构建成功了（后续只推送成功的服务）
 	var successSvcs []string
 
