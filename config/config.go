@@ -12,15 +12,17 @@ import (
 )
 
 type Config struct {
-	Telegram TelegramConfig         `mapstructure:"telegram"`
-	Server   ServerConfig           `mapstructure:"server"`
-	Envs     map[string]Environment `mapstructure:"environments"`
-	Apps     []string               `mapstructure:"apps"`
+	Server ServerConfig           `mapstructure:"server"`
+	Envs   map[string]Environment `mapstructure:"environments"`
+	Apps   map[string][]string    `mapstructure:"apps"`
+	TGBots []TGBot                `mapstructure:"tgbots"`
 }
 
-type TelegramConfig struct {
-	Token  string `mapstructure:"token"`
-	ChatID int64  `mapstructure:"chat_id"`
+type TGBot struct {
+	Name     string `mapstructure:"name"`
+	Token    string `mapstructure:"token"`
+	ChatID   int64  `mapstructure:"chat_id"`
+	IsListen bool   `mapstructure:"is_listen"` // 是否监听消息
 }
 
 type ServerConfig struct {
@@ -65,6 +67,8 @@ type Environment struct {
 	Sync       *SyncConfig   `mapstructure:"sync"`        // [可选] 同步配置
 	SrcPath    string        `mapstructure:"src_path"`    // 项目源码路径
 	OutputPath string        `mapstructure:"output_path"` // 编译产物路径
+	TGBot      string        `mapstructure:"tgbot"`       // 构建完成后发送通知的Telegram bot名称，必须在tgbots列表中定义
+	Apps       string        `mapstructure:"apps"`        // 可选项，指定该环境下的服务列表（逗号分隔），优先级高于全局 apps 配置
 }
 
 // Manager 负责并发安全地管理配置
@@ -125,7 +129,10 @@ func (m *Manager) Get() *Config {
 // GetAppServices 获取指定环境下的服务列表
 func (m *Manager) GetAppServices(envName string) []string {
 	cfg := m.Get()
-	return cfg.Apps
+	if apps, ok := cfg.Apps[envName]; ok {
+		return apps
+	}
+	return nil
 }
 
 // GetDockerComposeServices 动态解析指定环境的 Compose 文件获取真实服务列表。

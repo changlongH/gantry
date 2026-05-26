@@ -20,7 +20,18 @@ type Bot struct {
 }
 
 func NewBot(cfgMgr *config.Manager) (*Bot, error) {
-	bot, err := telego.NewBot(cfgMgr.Get().Telegram.Token)
+	var tgConfig *config.TGBot
+	for _, bot := range cfgMgr.Get().TGBots {
+		if bot.IsListen {
+			tgConfig = &bot
+			break
+		}
+	}
+	if tgConfig == nil {
+		return nil, fmt.Errorf("no Telegram bot configured to listen")
+	}
+
+	bot, err := telego.NewBot(tgConfig.Token)
 	if err != nil {
 		return nil, err
 	}

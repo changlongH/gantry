@@ -113,6 +113,21 @@ func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commi
 		return fmt.Errorf("环境配置不存在: %s", envName)
 	}
 
+	botName := envCfg.TGBot
+	if botName == "" {
+		return fmt.Errorf("环境未配置推送bot: %s", envName)
+	}
+	var chatID int64
+	for _, tg := range cfg.TGBots {
+		if tg.Name == botName {
+			chatID = tg.ChatID
+			break
+		}
+	}
+	if chatID == 0 {
+		return fmt.Errorf("未找到匹配的Telegram bot配置: %s", botName)
+	}
+
 	text := fmt.Sprintf("🚀 **【代码更新通知】**\n"+
 		"🌍 **当前环境:** `%s`\n"+
 		"👤 **提交人员:** %s\n"+
@@ -121,7 +136,7 @@ func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commi
 		"👇 **请选择操作:**",
 		envCfg.Desc, author, commitHash[:7], commitMsg)
 
-	msg := tu.Message(tu.ID(cfg.Telegram.ChatID), text).
+	msg := tu.Message(tu.ID(chatID), text).
 		WithParseMode(telego.ModeMarkdown).
 		WithReplyMarkup(b.buildMainMenu(envName))
 

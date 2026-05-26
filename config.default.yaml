@@ -1,10 +1,16 @@
-telegram:
-  token: "123456:perivate-token"
-  chat_id: -1000001
-
 server:
   address: ":6780"
   secret: "gantry#2026"
+
+tgbots:
+  - name: "devbot"
+    token: "123:devbot-token" # 替换为实际的Telegram bot token
+    chat_id: -2134567890 # 替换为实际的Telegram chat ID
+    default: true
+  - name: "prodbot"
+    token: "456:prodbot-token"
+    chat_id: -2131
+
 
 apps:
  - gateway
@@ -28,7 +34,7 @@ environments:
 
     src_path: "/data/src/test/apps" # 项目源码路径
     output_path: "/data/src/test/apps/output" # 编译产物路径
-
+    tgbot: "devbot" # 构建完成后发送通知的Telegram bot名称，必须在tgbots列表中定义
 
   prod:
     is_prod: true # 是否生产环境 需要二次确认操作
@@ -56,3 +62,4 @@ environments:
 
     src_path: "/data/src/release/apps" # 项目源码路径
     output_path: "/data/src/release/apps/output" # 编译产物路径
+    tgbot: "prodbot" # 构建完成后发送通知的Telegram bot名称，必须在tgbots列表中定义
