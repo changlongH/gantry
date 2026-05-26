@@ -129,7 +129,15 @@ func (m *Manager) Get() *Config {
 // GetAppServices 获取指定环境下的服务列表
 func (m *Manager) GetAppServices(envName string) []string {
 	cfg := m.Get()
-	if apps, ok := cfg.Apps[envName]; ok {
+	envCfg, ok := cfg.Envs[envName]
+	if !ok {
+		return nil
+	}
+	key := envCfg.Apps
+	if key == "" {
+		return nil
+	}
+	if apps, ok := cfg.Apps[key]; ok {
 		return apps
 	}
 	return nil
