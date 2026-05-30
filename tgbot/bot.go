@@ -42,7 +42,9 @@ func NewBot(cfgMgr *config.Manager) (*Bot, error) {
 func (b *Bot) Start() {
 	ctx := context.Background()
 
-	updates, err := b.bot.UpdatesViaLongPolling(ctx, nil)
+	updates, err := b.bot.UpdatesViaLongPolling(ctx, &telego.GetUpdatesParams{
+		Timeout: 30, // 30秒长轮询
+	})
 	if err != nil {
 		log.Fatalf("Failed to get updates: %v", err)
 	}

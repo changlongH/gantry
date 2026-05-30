@@ -6,7 +6,7 @@ tgbots:
   - name: "devbot"
     token: "123:devbot-token" # 替换为实际的Telegram bot token
     chat_id: -2134567890 # 替换为实际的Telegram chat ID
-    default: true
+    is_listen: true
   - name: "prodbot"
     token: "456:prodbot-token"
     chat_id: -2131

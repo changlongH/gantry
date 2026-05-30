@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -75,6 +76,8 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 		}
 		if len(row) > 0 {
 			rows = append(rows, row)
+		} else {
+			log.Printf("TG ActionMenuBuild: no services found for environment %s", env)
 		}
 	case ActionMenuRestart:
 		var row []telego.InlineKeyboardButton
@@ -89,6 +92,8 @@ func (b *Bot) buildServiceMenu(env string, subMenu CallbackAction) *telego.Inlin
 		}
 		if len(row) > 0 {
 			rows = append(rows, row)
+		} else {
+			log.Printf("TG ActionMenuRestart: no services found for environment %s", env)
 		}
 	}
 

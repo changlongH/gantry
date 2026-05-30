@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -156,6 +157,7 @@ func (m *Manager) GetDockerComposeServices(envName string) []string {
 	// 2. 查找环境配置
 	envCfg, ok := m.cfg.Envs[envName]
 	if !ok || envCfg.Docker.ComposeFile == "" {
+		log.Printf("⚠️ No Docker Compose file configured for environment [%s].", envName)
 		return nil
 	}
 
@@ -166,6 +168,8 @@ func (m *Manager) GetDockerComposeServices(envName string) []string {
 		return nil
 	}
 
+	// 排序服务列表，保持一致的顺序（可选）
+	sort.Strings(services)
 	// 4. 将成功解析的结果写入缓存
 	m.serviceCache[envName] = services
 	return services
