@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/changlongH/gantry/config"
 	"github.com/changlongH/gantry/executor"
@@ -126,9 +127,9 @@ func (b *Bot) asyncBuildTask(ctx context.Context, bot *telego.Bot, chatID int64,
 			resultText = fmt.Sprintf("❌ **[构建任务失败]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n⚠️ **错误信息:** `%v`", data.Svc, envDesc, err)
 		} else {
 			shortID := imageID
-			if len(shortID) > 12 {
-				shortID = shortID[:12]
-			}
+			// 按照 / 分割，取最后一段作为镜像 ID 的展示（通常是短 ID）
+			parts := strings.Split(shortID, "/")
+			shortID = parts[len(parts)-1]
 			resultText = fmt.Sprintf("✅ **[构建任务成功]**\n👤 **服务名称:** `%s`\n🌍 **目标环境:** `%s`\n🆔 **镜像 ID:** `%s`", data.Svc, envDesc, shortID)
 		}
 
