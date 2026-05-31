@@ -36,24 +36,24 @@ func genCallbackData(action CallbackAction, env, svc string) string {
 func (b *Bot) buildMainMenu(env string) *telego.InlineKeyboardMarkup {
 	envCfg, _ := b.cfgMgr.Get().Envs[env]
 	if envCfg.Docker == nil {
-		return tu.InlineKeyboard(
+		markup := tu.InlineKeyboard(
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("无Docker配置，无法构建或重启服务"),
+				tu.InlineKeyboardButton("无可用操作").WithCallbackData(genCallbackData(ActionMenuMain, env, "")),
 			),
 		)
-	} else {
-		return tu.InlineKeyboard(
-			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("🔨 构建服务").WithCallbackData(genCallbackData(ActionMenuBuild, env, "")),
-				tu.InlineKeyboardButton("🔄 重启服务").WithCallbackData(genCallbackData(ActionMenuRestart, env, "")),
-			),
-			/*
-				tu.InlineKeyboardRow(
-					tu.InlineKeyboardButton("🚀 同步本地代码").WithCallbackData(genCallbackData(consts.ActionSync, env, "")),
-				),
-			*/
-		)
+		return markup
 	}
+	return tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("🔨 构建服务").WithCallbackData(genCallbackData(ActionMenuBuild, env, "")),
+			tu.InlineKeyboardButton("🔄 重启服务").WithCallbackData(genCallbackData(ActionMenuRestart, env, "")),
+		),
+		/*
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("🚀 同步本地代码").WithCallbackData(genCallbackData(consts.ActionSync, env, "")),
+			),
+		*/
+	)
 }
 
 // buildServiceMenu 构造第二级子菜单（选择要构建的具体服务）
