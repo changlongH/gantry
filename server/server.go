@@ -21,7 +21,7 @@ type Server struct {
 }
 
 func NewServer(cfgMgr *config.Manager, bot *tgbot.Bot) *Server {
-	return &Server{cfgMgr: cfgMgr, bot: bot}
+	return &Server{cfgMgr: cfgMgr, bot: bot, bots: make(map[string]*telego.Bot)}
 }
 
 type WebhookPayload struct {
