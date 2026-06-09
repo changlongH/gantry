@@ -33,7 +33,7 @@ type WebhookPayload struct {
 }
 
 // 获取监听的listen bot实例
-func (s *Server) getListenBot() *tgbot.Bot {
+func (s *Server) GetListenBot() *tgbot.Bot {
 	return s.bot
 }
 
