@@ -5,9 +5,9 @@ import (
 	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/changlongH/gantry/config"
-	"github.com/changlongH/gantry/consts"
 	"github.com/changlongH/gantry/executor"
+	"github.com/changlongH/gantry/pkg/config"
+	"github.com/changlongH/gantry/pkg/consts"
 	"github.com/fatih/color"
 )
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/changlongH/gantry/config"
+	"github.com/changlongH/gantry/pkg/config"
 	"github.com/changlongH/gantry/server"
 	"github.com/changlongH/gantry/tgbot"
 )

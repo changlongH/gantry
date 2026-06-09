@@ -10,7 +10,10 @@ tgbots:
   - name: "prodbot"
     token: "456:prodbot-token"
     chat_id: -2131
-
+  - name: "alarmbot"
+    token: "789:alarmbot-token"
+    chat_id: -2134567891
+    is_listen: false
 
 apps:
  - gateway

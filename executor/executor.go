@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/changlongH/gantry/config"
+	"github.com/changlongH/gantry/pkg/config"
 )
 
 type BuildOptions struct {

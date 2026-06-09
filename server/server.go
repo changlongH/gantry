@@ -1,17 +1,23 @@
 package server
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
-	"net/http"
+	"sync"
 
-	"github.com/changlongH/gantry/config"
+	"github.com/gin-gonic/gin"
+	"github.com/mymmrac/telego"
+
+	"github.com/changlongH/gantry/pkg/config"
 	"github.com/changlongH/gantry/tgbot"
 )
 
 type Server struct {
 	cfgMgr *config.Manager
-	bot    *tgbot.Bot
+	bot    *tgbot.Bot // 监听的bot
+
+	botMu sync.Mutex
+	bots  map[string]*telego.Bot // 其他bot实例
 }
 
 func NewServer(cfgMgr *config.Manager, bot *tgbot.Bot) *Server {
@@ -26,6 +32,36 @@ type WebhookPayload struct {
 	Author        string `json:"author"`
 }
 
+// 获取监听的listen bot实例
+func (s *Server) getListenBot() *tgbot.Bot {
+	return s.bot
+}
+
+// 获取指定名称的bot实例
+func (s *Server) getBotByName(name string) (*telego.Bot, error) {
+	s.botMu.Lock()
+	bot, exists := s.bots[name]
+	s.botMu.Unlock()
+	if exists {
+		return bot, nil
+	}
+
+	// 加载配置并创建新bot实例
+	cfg := s.cfgMgr.GetTGBotByName(name)
+	if cfg == nil {
+		return nil, fmt.Errorf("not found bot")
+	}
+
+	bot, err := telego.NewBot(cfg.Token)
+	if err != nil {
+		return nil, err
+	}
+	s.botMu.Lock()
+	s.bots[name] = bot
+	s.botMu.Unlock()
+	return bot, nil
+}
+
 // 辅助方法
 func (s *Server) findEnvByBranch(repo, branch string) string {
 	for name, envCfg := range s.cfgMgr.Get().Envs {
@@ -36,46 +72,27 @@ func (s *Server) findEnvByBranch(repo, branch string) string {
 	return ""
 }
 
-func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var secret = s.cfgMgr.Get().Server.Secret
-	if secret != "" {
-		reqSecret := r.Header.Get("X-Secret")
-		if reqSecret != secret {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-	}
-
-	var payload WebhookPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	// 查询分支对应的环境
-	var envName = s.findEnvByBranch(payload.Repository, payload.Branch)
-	if envName == "" {
-		http.Error(w, "Branch not mapped to any environment", http.StatusBadRequest)
-		return
-	}
-
-	err := s.bot.SendDeploymentMenu(r.Context(), envName, payload.CommitHash, payload.CommitMessage, payload.Author)
-	if err != nil {
-		log.Printf("TG notification dispatch pipeline failed: %v", err)
-		http.Error(w, "Internal routing error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Pipeline trigger dispatched to Telegram"))
-}
-
 func (s *Server) Start() error {
-	http.HandleFunc("/git/commit", s.handleCommit)
-	return http.ListenAndServe(s.cfgMgr.Get().Server.Address, nil)
+	// 设置为生产模式以隐藏调试日志（可选，调试时可注释掉）
+	gin.SetMode(gin.ReleaseMode)
+	// 初始化 Gin 引擎
+	// gin.Default() 默认的日志和崩溃恢复中间件
+	r := gin.Default()
+
+	handler := &Handler{
+		srv: s,
+	}
+
+	// 统一注册带有【鉴权+限流中间件】的 POST 路由
+	api := r.Group("/")
+	api.Use(s.authAndLimitMiddleware())
+	{
+		api.POST("/git/commit", handler.HandleCommit)
+		api.POST("/alarm/notify", handler.HandleAlarmNotify)
+	}
+
+	// 启动监听
+	address := s.cfgMgr.Get().Server.Address
+	log.Printf("Server is running on %s", address)
+	return r.Run(address)
 }

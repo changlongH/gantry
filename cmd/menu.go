@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/changlongH/gantry/config"
+	"github.com/changlongH/gantry/pkg/config"
 )
 
 func (cli *InteractiveCLI) buildMainMenu(envCfg config.Environment) []MenuAction {

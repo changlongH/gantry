@@ -7,8 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/changlongH/gantry/config"
 	"github.com/changlongH/gantry/executor"
+	"github.com/changlongH/gantry/pkg/config"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"

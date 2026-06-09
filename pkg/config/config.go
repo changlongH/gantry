@@ -197,3 +197,14 @@ func parseComposeServices(filePath string) ([]string, error) {
 
 	return services, nil
 }
+
+// 查询TGBot配置
+func (m *Manager) GetTGBotByName(name string) *TGBot {
+	cfg := m.Get()
+	for _, bot := range cfg.TGBots {
+		if bot.Name == name {
+			return &bot
+		}
+	}
+	return nil
+}

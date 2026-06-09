@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/changlongH/gantry/consts"
+	"github.com/changlongH/gantry/pkg/consts"
 )
 
 func (e *Executor) GetSvcImageName(opts BuildOptions) string {
