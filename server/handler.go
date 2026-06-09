@@ -47,7 +47,7 @@ func (h *Handler) HandleCommit(c *gin.Context) {
 	OK(c, "Pipeline trigger dispatched to Telegram")
 }
 
-var alarmTemplate = `🚨 <b>[{{.Env}}]</b>
+var alarmTemplate = `🚨 <b>[{{.Alias}}]</b>
 ⏰ <b>告警时间</b> {{.Time}}
 📝 <b>告警消息</b>
 <pre>{{.Content}}</pre>`
