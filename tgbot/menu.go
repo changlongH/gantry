@@ -146,5 +146,8 @@ func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commi
 		WithReplyMarkup(b.buildMainMenu(envName))
 
 	_, err := b.bot.SendMessage(ctx, msg)
+	if err != nil {
+		log.Printf("Failed to send tg msg: %v", text)
+	}
 	return err
 }

@@ -25,6 +25,8 @@ func (h *Handler) HandleCommit(c *gin.Context) {
 	// ShouldBindJSON 会自动解析 JSON
 	// 同时，Gin 会在请求生命周期结束时自动关闭 c.Request.Body
 	if err := c.ShouldBindJSON(&payload); err != nil {
+		bodyBytes, _ := io.ReadAll(c.Request.Body)
+		log.Printf("Failed to bind JSON: data:%s, %v", string(bodyBytes), err)
 		Fail(c, http.StatusBadRequest, 1, "bad request bind failed")
 		return
 	}
@@ -44,6 +46,7 @@ func (h *Handler) HandleCommit(c *gin.Context) {
 		return
 	}
 
+	log.Printf("Pipeline trigger dispatched to Telegram successfully for repo:%s branch:%s", payload.Repository, payload.Branch)
 	OK(c, "Pipeline trigger dispatched to Telegram")
 }
 
