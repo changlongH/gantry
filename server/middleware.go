@@ -7,10 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 白名单路径（不需要鉴权的路径）
+var whitelistPaths = map[string]bool{
+	"/health":       true,
+	"/alarm/notify": true,
+}
+
 // Gin 中间件：负责统一的 X-Secret 鉴权和请求体大小限制
 func (s *Server) authAndLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. 鉴权校验
+		if whitelistPaths[c.Request.URL.Path] {
+			c.Next()
+			return
+		}
+
 		secret := s.cfgMgr.Get().Server.Secret
 		if secret == "" {
 			log.Printf("Server secret not configured, rejecting request")
@@ -20,7 +31,7 @@ func (s *Server) authAndLimitMiddleware() gin.HandlerFunc {
 
 		reqSecret := c.GetHeader("X-Secret")
 		if reqSecret != secret {
-			log.Printf("Invalid server secret=%s, rejecting request", reqSecret)
+			log.Printf("Invalid server path:%s secret=%s, rejecting request", c.Request.URL.Path, reqSecret)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}
