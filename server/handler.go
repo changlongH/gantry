@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"html/template"
 	"io"
 	"log"
@@ -21,15 +22,29 @@ type Handler struct {
 // 处理 Git Commit Webhook
 func (h *Handler) HandleCommit(c *gin.Context) {
 	var payload WebhookPayload
+	bodyBytes, err := c.GetRawData()
+	if err != nil {
+		log.Printf("Failed to read body: %v", err)
+		Fail(c, http.StatusBadRequest, 1, "bad request")
+		return
+	}
 
-	// ShouldBindJSON 会自动解析 JSON
-	// 同时，Gin 会在请求生命周期结束时自动关闭 c.Request.Body
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		bodyBytes, _ := io.ReadAll(c.Request.Body)
-		log.Printf("Failed to bind JSON: data:%s, %v", string(bodyBytes), err)
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+		log.Printf("Failed to bind JSON: data:%s, err:%v", string(bodyBytes), err)
 		Fail(c, http.StatusBadRequest, 1, "bad request bind failed")
 		return
 	}
+
+	/*
+		// ShouldBindJSON 会自动解析 JSON
+		// 同时，Gin 会在请求生命周期结束时自动关闭 c.Request.Body
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			bodyBytes, _ := io.ReadAll(c.Request.Body)
+			log.Printf("Failed to bind JSON: data:%s, %v", string(bodyBytes), err)
+			Fail(c, http.StatusBadRequest, 1, "bad request bind failed")
+			return
+		}
+	*/
 
 	// 查询分支对应的环境
 	envName := h.srv.findEnvByBranch(payload.Repository, payload.Branch)
@@ -39,7 +54,7 @@ func (h *Handler) HandleCommit(c *gin.Context) {
 	}
 
 	// 使用 c.Request.Context() 传递链路上下文
-	err := h.srv.bot.SendDeploymentMenu(c.Request.Context(), envName, payload.CommitHash, payload.CommitMessage, payload.Author)
+	err = h.srv.bot.SendDeploymentMenu(c.Request.Context(), envName, payload.CommitHash, payload.CommitMessage, payload.Author)
 	if err != nil {
 		log.Printf("TG notification dispatch pipeline failed: %v", err)
 		Fail(c, http.StatusInternalServerError, 3, "Internal routing error")
