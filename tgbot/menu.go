@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 
 	"github.com/mymmrac/telego"
@@ -133,16 +134,20 @@ func (b *Bot) SendDeploymentMenu(ctx context.Context, envName, commitHash, commi
 		return fmt.Errorf("未找到匹配的Telegram bot配置: %s", botName)
 	}
 
-	text := fmt.Sprintf("🚀 **【代码更新通知】**\n"+
-		"🌍 **当前环境:** `%s`\n"+
-		"👤 **提交人员:** %s\n"+
-		"🏷 **Commit:** `%s`\n"+
-		"💬 **提交日志:** %s\n\n"+
-		"👇 **请选择操作:**",
-		envCfg.Desc, author, commitHash[:7], commitMsg)
+	safeEnvDesc := html.EscapeString(envCfg.Desc)
+	safeAuthor := html.EscapeString(author)
+	safeCommitMsg := html.EscapeString(commitMsg)
+
+	text := fmt.Sprintf("🚀 <b>【代码更新通知】</b>\n"+
+		"🌍 <b>当前环境:</b> <code>%s</code>\n"+
+		"👤 <b>提交人员:</b> <code>%s</code>\n"+
+		"🏷 <b>Commit:</b> <code>%s</code>\n"+
+		"💬 <b>提交日志:</b> <code>%s</code>\n"+
+		"👇 <b>请选择操作:</b>",
+		safeEnvDesc, safeAuthor, commitHash[:7], safeCommitMsg)
 
 	msg := tu.Message(tu.ID(chatID), text).
-		WithParseMode(telego.ModeMarkdown).
+		WithParseMode(telego.ModeHTML).
 		WithReplyMarkup(b.buildMainMenu(envName))
 
 	_, err := b.bot.SendMessage(ctx, msg)
