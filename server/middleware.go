@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +13,14 @@ func (s *Server) authAndLimitMiddleware() gin.HandlerFunc {
 		// 1. 鉴权校验
 		secret := s.cfgMgr.Get().Server.Secret
 		if secret == "" {
+			log.Printf("Server secret not configured, rejecting request")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Server secret not configured"})
 			return
 		}
 
 		reqSecret := c.GetHeader("X-Secret")
 		if reqSecret != secret {
+			log.Printf("Invalid server secret=%s, rejecting request", reqSecret)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}

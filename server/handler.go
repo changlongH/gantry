@@ -113,5 +113,6 @@ func (h *Handler) HandleAlarmNotify(c *gin.Context) {
 		return
 	}
 
+	log.Printf("Alarm notification sent to Telegram successfully")
 	OK(c, "Alarm notification dispatched to Telegram")
 }
